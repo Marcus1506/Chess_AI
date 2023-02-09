@@ -164,6 +164,15 @@ class piece:
         
         return moves
     
+    def check_false_color_and_turn(self, whites_turn):
+        if self.color=='b' and whites_turn:
+            return True
+            
+        if self.color=='w' and (not whites_turn):
+            return True
+        
+        else: return False
+    
     def get_position(self):
         return self.position
 
@@ -222,6 +231,9 @@ class rook(piece):
     def get_moves(self, chess_board, pos):
         board=chess_board.get_board()
         
+        if self.check_false_color_and_turn(chess_board.whites_turn):
+            return []
+        
         return self.add_horizontal_moves(board, pos)
     
     
@@ -239,6 +251,10 @@ class knight(piece):
     
     def get_moves(self, chess_board, pos):
         moves=[]
+        
+        if self.check_false_color_and_turn(chess_board.whites_turn):
+            return moves
+        
         board=chess_board.get_board()
         
         permutations=[[2,1],[1,2]]
@@ -271,6 +287,10 @@ class bishop(piece):
         self.key=color+self.rep
     
     def get_moves(self, chess_board, pos):
+    
+        if self.check_false_color_and_turn(chess_board.whites_turn):
+            return []
+    
         board=chess_board.get_board()
         
         return self.add_diagonal_moves(board, pos)
@@ -289,6 +309,10 @@ class queen(piece):
     
     def get_moves(self, chess_board, pos):
         moves=[]
+        
+        if self.check_false_color_and_turn(chess_board.whites_turn):
+            return moves
+        
         board=chess_board.get_board()
         
         moves+=self.add_diagonal_moves(board, pos)
@@ -310,6 +334,10 @@ class king(piece):
     
     def get_moves(self, chess_board, pos):
         moves=[]
+        
+        if self.check_false_color_and_turn(chess_board.whites_turn):
+            return moves
+        
         board=chess_board.get_board()
         
         directions_1=[-1,1]
