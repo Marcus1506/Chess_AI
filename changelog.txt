@@ -1,1 +1,0 @@
-integrating move class object test

@@ -16,22 +16,24 @@ def load_images():
 
 def draw_board(screen, valid_moves, selected_start=None):
     colors=[p.Color("white"), p.Color("gray")]
-    for row in range(8):
-        for col in range(8):
+    if selected_start: valid_squares=[[elem[1][0], elem[1][1]] for elem in valid_moves if elem[0][0]==selected_start[0] and elem[0][1]==selected_start[1]]
+    for row in range(BOARD_DIM):
+        for col in range(BOARD_DIM):
             color=colors[(row+col)%2]
             # here I can set color differently afterwards, to highlight certain things
             p.draw.rect(screen, color, p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
-            if selected_start and row==selected_start[0] and col==selected_start[1]:
-                yellow=p.Color("yellow", alpha=128)
-                p.draw.rect(screen, yellow, p.Rect(selected_start[1]*SQR_SIZE, selected_start[0]*SQR_SIZE, SQR_SIZE, SQR_SIZE))
-                # draw valid squares on the screen:
-                valid_squares=[elem for elem in valid_moves if elem[0][0]==selected_start[0] and elem[0][1]==selected_start[1]]
-                for elem in valid_squares:
-                    p.draw.rect(screen, yellow, p.Rect(elem[1][1]*SQR_SIZE, elem[1][0]*SQR_SIZE, SQR_SIZE, SQR_SIZE))
+            
+            if selected_start:
+                if row==selected_start[0] and col==selected_start[1]:
+                    p.draw.rect(screen, p.Color("yellow", alpha=128), p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
+                    continue
+                if [row, col] in valid_squares:
+                    p.draw.rect(screen, p.Color("yellow", alpha=128), p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
+                
 
 def draw_pieces(screen, board):
-    for row in range(8):
-        for col in range(8):
+    for row in range(BOARD_DIM):
+        for col in range(BOARD_DIM):
             piece=board[row,col]
             if piece != None:
                 screen.blit(IMAGES[piece.key], p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
@@ -55,7 +57,6 @@ def main():
     player_clicks=[] # two tuples for the player clicks
     selected_start=False
     valid_moves=gs.get_valid_moves()
-    
     
     while running:
         for e in p.event.get():
