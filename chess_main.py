@@ -3,6 +3,8 @@
 
 from chess import *
 import pygame as p
+import sys
+
 
 LENGTH = 512 # divides neatly by 8
 SQR_SIZE = 64
@@ -57,6 +59,8 @@ def main():
     player_clicks=[] # two tuples for the player clicks
     selected_start=False
     valid_moves=gs.get_valid_moves()
+    
+    print(sys.getrecursionlimit())
     
     while running:
         for e in p.event.get():

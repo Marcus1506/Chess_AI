@@ -14,6 +14,8 @@ class chess_board:
         self.id=id
         self.whites_turn=whites_turn # means white starts
         self.move_log=[]
+        self.white_king_loc=[0,4]
+        self.black_king_loc=[7,4]
     
     def place_piece(self, position, piece):
         self.board[position[0],position[1]]=piece
@@ -21,9 +23,15 @@ class chess_board:
     def remove_piece(self, position):
         self.board[position[0],position[1]]=None
     
-    def move_piece(self, start, end):
+    def move_piece(self, start, end): # I should actually use move object here
         if self.board[start[0],start[1]]!=None and [[start[0], start[1]], [end[0], end[1]]] in self.get_valid_moves(): # should check for validness here
             move_made=move(start, end, self.board)
+            # update king pos
+            if isinstance(self.board[start[0], start[1]], king):
+                if self.board[start[0], start[1]].color=='w':
+                    self.white_king_loc=[end[0], end[1]]
+                else:
+                    self.black_king_loc=[end[0], end[1]]
             self.remove_piece(move_made.start)
             self.place_piece(move_made.end, move_made.piece_moved)
             self.move_log.append(move_made)
@@ -39,6 +47,11 @@ class chess_board:
         self.board[last_move.start[0], last_move.start[1]]=last_move.piece_moved
         self.move_log.pop()
         self.whites_turn=not self.whites_turn
+        # update king pos
+        if last_move.piece_moved.key=='wK':
+            self.white_king_loc=[last_move.start[0], last_move.start[1]]
+        elif last_move.piece_moved.key=='bK':
+            self.black_king_loc=[last_move.start[0], last_move.start[1]]
     
     def get_possible_moves(self):
         # generate a list of all possible moves
@@ -52,15 +65,44 @@ class chess_board:
         return moves
     
     def get_valid_moves(self):
-        # validate all moves of the possible_moves method
-        # so moves which end in a checkmate are not allowed
-        return self.get_possible_moves()
+        # moves which end in a checkmate are not allowed and get filtered here
+        
+        new_gs=self.deep_copy()
+        
+        # valid_moves=[]
+        
+        # for move_1 in self.get_possible_moves():
+            # new_gs.move_piece([move_1[0][0], move_1[0][1]], [move_1[1][0], move_1[1][1]])
+            # for move_2 in new_gs.get_possible_moves():
+                # new_gs.move_piece([move_2[0][0], move_2[0][1]], [move_2[1][0], move_2[1][1]])
+                # if (not isinstance(new_gs.move_log[-1].piece_captured, king)):
+                    # valid_moves.append(move_1)
+                    # new_gs.undo_move()
+                # else:
+                    # new_gs.undo_move()
+            # new_gs.undo_move()
+        
+        # return valid_moves
+        
+        return new_gs.get_possible_moves()
     
     def get_board(self):
         return self.board
     
     def state(self):
         return self.board
+    
+    def deep_copy(self):
+        deep_copy=chess_board(self.id, self.whites_turn)
+        deep_copy.set_board(self.board)
+        deep_copy.set_move_log(self.move_log)
+        return deep_copy
+    
+    def set_board(self, board):
+        self.board=board
+    
+    def set_move_log(self, move_log):
+        self.move_log=move_log
     
     def __str__(self):
         print(self.board)
@@ -90,7 +132,7 @@ class chess_board:
         self.place_piece([0,3], queen('w'))
         self.place_piece([7,3], queen('b'))
 
-class move:
+class move: # class for storing moves and analyzing future moves
     def __init__(self, start, end, board):
         # store all the important information for a move
         # maybe also add boardstate, could be important for AI later on
