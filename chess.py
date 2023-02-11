@@ -24,8 +24,8 @@ class chess_board:
         self.board[position[0],position[1]]=None
     
     def move_piece(self, move): # I should actually use move object here
-        print(move)
-        if self.board[move.start_row,move.start_col]!=None and move in self.get_valid_moves(): # should check for validness here
+        # because of timing issues illegal moves concerning check will be handled through the UI
+        if self.board[move.start_row,move.start_col]!=None:
             # update king pos
             if isinstance(move.piece_moved, king):
                 if move.piece_moved.color=='w':
@@ -36,22 +36,23 @@ class chess_board:
             self.place_piece([move.end_row, move.end_col], move.piece_moved)
             self.move_log.append(move)
             self.whites_turn=(not self.whites_turn)
-            print(self.move_log[-1])
         else:
-            print("invalid move!")
+            print("cant move None")
     
     def undo_move(self):
         assert len(self.move_log)>=1, "move log is empty"
         last_move=self.move_log[-1]
-        self.board[last_move.end[0], last_move.end[1]]=last_move.piece_captured
-        self.board[last_move.start[0], last_move.start[1]]=last_move.piece_moved
+        self.board[last_move.end_row, last_move.end_col]=last_move.piece_captured
+        self.board[last_move.start_row, last_move.start_col]=last_move.piece_moved
         self.move_log.pop()
         self.whites_turn=not self.whites_turn
         # update king pos
         if last_move.piece_moved.key=='wK':
             self.white_king_loc=[last_move.start_row, last_move.start_col]
+            print("new white king location: ", self.white_king_loc)
         elif last_move.piece_moved.key=='bK':
             self.black_king_loc=[last_move.start_row, last_move.start_col]
+            print("new black king location: ", self.black_king_loc)
     
     def get_possible_moves(self):
         # generate a list of all possible moves
@@ -65,48 +66,42 @@ class chess_board:
     
     def get_valid_moves(self):
         # moves which end in a checkmate are not allowed and get filtered here
-        # no need for deep copy since i can use undo_move
+        # no need for deep copy since undo_move() can be used instead
         
-        # valid_moves=[]
+        moves=self.get_possible_moves()
+
+        for i in range(len(moves)-1, -1, -1):
+            # active player makes move
+            self.move_piece(moves[i])
+            # now check for opposing player if move results in checkmate
+            self.whites_turn=not self.whites_turn
+            if self.in_check():
+                del moves[i]
+            self.whites_turn=not self.whites_turn
+            self.undo_move()
+
+        return moves
         
-        # for move_1 in self.get_possible_moves():
-            # self.move_piece([move_1[0][0], move_1[0][1]], [move_1[1][0], move_1[1][1]])
-            # for move_2 in self.get_possible_moves():
-                # self.move_piece([move_2[0][0], move_2[0][1]], [move_2[1][0], move_2[1][1]])
-                # if (not isinstance(self.move_log[-1].piece_captured, king)):
-                    # valid_moves.append(move_1)
-                    # self.undo_move()
-                # else:
-                    # self.undo_move()
-            # self.undo_move()
-        
-        # return valid_moves
-        return self.get_possible_moves()
-        
-    def in_check(self):
+    def in_check(self): # if player on the move is in check returns True
         if self.whites_turn:
             return self.square_under_attack(self.white_king_loc[0], self.white_king_loc[1])
         else:
             return self.square_under_attack(self.black_king_loc[0], self.black_king_loc[1])
     
-    
-    def square_under_attack(self, row, col):
+    def square_under_attack(self, row, col): # general function which checks if square is under attack
+        # switch to oppenent, get moves and switch back
+        self.whites_turn=not self.whites_turn
         opponents_moves=self.get_possible_moves()
+        self.whites_turn=not self.whites_turn
         # because of the stored king locations, we dont have to move two times
         for move in opponents_moves:
-            pass
+            if move.end_row==row and move.end_col==col:
+                self.whites_turn=not self.whites_turn
+                return True
+        return False
     
     def get_board(self):
         return self.board
-    
-    def state(self):
-        return self.board
-    
-    def deep_copy(self):
-        deep_copy=chess_board(self.id, self.whites_turn)
-        deep_copy.set_board(self.board)
-        deep_copy.set_move_log(self.move_log)
-        return deep_copy
     
     def set_board(self, board):
         self.board=board
@@ -399,7 +394,7 @@ class king(piece):
     def __init__(self, color):
         super().__init__(color)
         self.rep='K'
-        self.key=color+self.rep
+        self.key=self.color+self.rep
     
     def get_moves(self, chess_board, pos):
         moves=[]
@@ -422,28 +417,28 @@ class king(piece):
                     if board[pos_1[0], pos_1[1]]==None:
                         moves.append([pos_1[0], pos_1[1]])
                     elif board[pos_1[0], pos_1[1]].color==self.color:
-                        break
+                        continue
                     else:
                         moves.append([pos_1[0], pos_1[1]])
-                        break
+                        continue
                 
                 if 0 <= pos_2[1] < BOARD_DIM:
                     if board[pos_2[0], pos_2[1]]==None:
                         moves.append([pos_2[0], pos_2[1]])
                     elif board[pos_2[0], pos_2[1]].color==self.color:
-                        break
+                        continue
                     else:
                         moves.append([pos_2[0], pos_2[1]])
-                        break
+                        continue
                 
                 if 0 <= pos_3[0] < BOARD_DIM and 0 <= pos_3[1] < BOARD_DIM:
                     if board[pos_3[0], pos_3[1]]==None:
                         moves.append([pos_3[0], pos_3[1]])
                     elif board[pos_3[0], pos_3[1]].color==self.color:
-                        break
+                        continue
                     else:
                         moves.append([pos_3[0], pos_3[1]])
-                        break
+                        continue
         
         if len(moves)!=0:
             moves=self.convert_to_move(pos, moves, board)

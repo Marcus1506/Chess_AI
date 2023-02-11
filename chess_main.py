@@ -18,7 +18,6 @@ def load_images():
 
 def draw_board(screen, valid_moves, selected_start=None):
     colors=[p.Color("white"), p.Color("gray")]
-    print(valid_moves[0].start_row)
     if selected_start: valid_squares=[[move.end_row, move.end_col] for move in valid_moves if move.start_row==selected_start[0] and move.start_col==selected_start[1]]
     for row in range(BOARD_DIM):
         for col in range(BOARD_DIM):
@@ -44,7 +43,7 @@ def draw_pieces(screen, board):
 def draw_game_state(screen, gs, valid_moves, selected_start):
     draw_board(screen, valid_moves, selected_start)
     
-    draw_pieces(screen, gs.state())
+    draw_pieces(screen, gs.get_board())
 
 
 def main():
@@ -81,14 +80,23 @@ def main():
                     if len(player_clicks)==1:
                         selected_start=[row, col]
                 if len(player_clicks)==2: # actually perform the move
-                    gs.move_piece(move(player_clicks[0], player_clicks[1], gs.get_board()))
-                    valid_moves=gs.get_valid_moves() # calc new valid_moves when a move is made
-                    player_clicks=[] # reset player clicks
-                    sq_selected=() # also clear selected to be sure
-                    selected_start=False
+                    desired_move=move(player_clicks[0], player_clicks[1], gs.get_board())
+                    if desired_move in valid_moves:
+                        gs.move_piece(desired_move)
+                        valid_moves=gs.get_valid_moves() # calc new valid_moves when a move is made
+                        player_clicks=[] # reset player clicks
+                        sq_selected=() # also clear selected to be sure
+                        selected_start=False
+                        print(valid_moves)
+                    else:
+                        print("invalid move")
+                        player_clicks=[]
+                        sq_selected=()
+                        selected_start=False
             elif e.type==p.KEYDOWN:
-                if e.key==p.K_z:
+                if e.key==p.K_z and gs.move_log:
                     gs.undo_move()
+                    valid_moves=gs.get_valid_moves()
                 
         
         draw_game_state(screen, gs, valid_moves, selected_start)
