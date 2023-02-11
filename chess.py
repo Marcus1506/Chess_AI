@@ -23,18 +23,18 @@ class chess_board:
     def remove_piece(self, position):
         self.board[position[0],position[1]]=None
     
-    def move_piece(self, start, end): # I should actually use move object here
-        if self.board[start[0],start[1]]!=None and [[start[0], start[1]], [end[0], end[1]]] in self.get_valid_moves(): # should check for validness here
-            move_made=move(start, end, self.board)
+    def move_piece(self, move): # I should actually use move object here
+        print(move)
+        if self.board[move.start_row,move.start_col]!=None and move in self.get_valid_moves(): # should check for validness here
             # update king pos
-            if isinstance(self.board[start[0], start[1]], king):
-                if self.board[start[0], start[1]].color=='w':
-                    self.white_king_loc=[end[0], end[1]]
+            if isinstance(move.piece_moved, king):
+                if move.piece_moved.color=='w':
+                    self.white_king_loc=[move.end_row, move.end_col]
                 else:
-                    self.black_king_loc=[end[0], end[1]]
-            self.remove_piece(move_made.start)
-            self.place_piece(move_made.end, move_made.piece_moved)
-            self.move_log.append(move_made)
+                    self.black_king_loc=[move.end_row, move.end_col]
+            self.remove_piece([move.start_row, move.start_col])
+            self.place_piece([move.end_row, move.end_col], move.piece_moved)
+            self.move_log.append(move)
             self.whites_turn=(not self.whites_turn)
             print(self.move_log[-1])
         else:
@@ -49,9 +49,9 @@ class chess_board:
         self.whites_turn=not self.whites_turn
         # update king pos
         if last_move.piece_moved.key=='wK':
-            self.white_king_loc=[last_move.start[0], last_move.start[1]]
+            self.white_king_loc=[last_move.start_row, last_move.start_col]
         elif last_move.piece_moved.key=='bK':
-            self.black_king_loc=[last_move.start[0], last_move.start[1]]
+            self.black_king_loc=[last_move.start_row, last_move.start_col]
     
     def get_possible_moves(self):
         # generate a list of all possible moves
@@ -61,30 +61,40 @@ class chess_board:
                 cur_obj=self.board[row, col]
                 if cur_obj==None: continue
                 else: moves+=cur_obj.get_moves(self, [row, col])
-        
         return moves
     
     def get_valid_moves(self):
         # moves which end in a checkmate are not allowed and get filtered here
-        
-        new_gs=self.deep_copy()
+        # no need for deep copy since i can use undo_move
         
         # valid_moves=[]
         
         # for move_1 in self.get_possible_moves():
-            # new_gs.move_piece([move_1[0][0], move_1[0][1]], [move_1[1][0], move_1[1][1]])
-            # for move_2 in new_gs.get_possible_moves():
-                # new_gs.move_piece([move_2[0][0], move_2[0][1]], [move_2[1][0], move_2[1][1]])
-                # if (not isinstance(new_gs.move_log[-1].piece_captured, king)):
+            # self.move_piece([move_1[0][0], move_1[0][1]], [move_1[1][0], move_1[1][1]])
+            # for move_2 in self.get_possible_moves():
+                # self.move_piece([move_2[0][0], move_2[0][1]], [move_2[1][0], move_2[1][1]])
+                # if (not isinstance(self.move_log[-1].piece_captured, king)):
                     # valid_moves.append(move_1)
-                    # new_gs.undo_move()
+                    # self.undo_move()
                 # else:
-                    # new_gs.undo_move()
-            # new_gs.undo_move()
+                    # self.undo_move()
+            # self.undo_move()
         
         # return valid_moves
+        return self.get_possible_moves()
         
-        return new_gs.get_possible_moves()
+    def in_check(self):
+        if self.whites_turn:
+            return self.square_under_attack(self.white_king_loc[0], self.white_king_loc[1])
+        else:
+            return self.square_under_attack(self.black_king_loc[0], self.black_king_loc[1])
+    
+    
+    def square_under_attack(self, row, col):
+        opponents_moves=self.get_possible_moves()
+        # because of the stored king locations, we dont have to move two times
+        for move in opponents_moves:
+            pass
     
     def get_board(self):
         return self.board
@@ -136,15 +146,30 @@ class move: # class for storing moves and analyzing future moves
     def __init__(self, start, end, board):
         # store all the important information for a move
         # maybe also add boardstate, could be important for AI later on
-        self.start=start
-        self.end=end
+        self.start_row=start[0]
+        self.start_col=start[1]
+        self.end_row=end[0]
+        self.end_col=end[1]
+        self.board=board # to define equality more smoothly
         self.piece_moved=board[start[0], start[1]]
         # this direct approach for setting the piece captured is very intuitive
         # no peace captured would mean None dtype, and it simplifies some following implementations
         self.piece_captured=board[end[0], end[1]]
         
+    
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if (self.start_row == other.start_row and
+                self.start_col == other.start_col and
+                self.end_row == other.end_row and
+                self.end_col == other.end_col and
+                np.array_equal(self.board, other.board)):
+                return True
+        
+        return False
+    
     def __repr__(self):
-        return str(self.start+self.end)
+        return str([self.start_row,self.start_col,self.end_row,self.end_col])
 
 class piece:
     def __init__(self, color):
@@ -177,10 +202,15 @@ class piece:
                         break
         
         if len(moves)!=0:
-            for i in range(len(moves)):
-                moves[i]=[[pos[0], pos[1]],[moves[i][0], moves[i][1]]]
+            moves=self.convert_to_move(pos, moves, board)
         
         return moves
+    
+    def convert_to_move(self, pos, moves, board):
+        converted_moves=[]
+        for move_ in moves:
+            converted_moves.append(move(pos, move_, board))
+        return converted_moves
     
     def add_diagonal_moves(self, board, pos):
         moves=[]
@@ -201,8 +231,7 @@ class piece:
                             break
         
         if len(moves)!=0:
-            for i in range(len(moves)):
-                moves[i]=[[pos[0], pos[1]],[moves[i][0], moves[i][1]]]
+            moves=self.convert_to_move(pos, moves, board)
         
         return moves
     
@@ -253,8 +282,7 @@ class pawn(piece):
         
         # add beginning position 'pos' for comparing if the move is valid
         if len(moves)!=0:
-            for i in range(len(moves)):
-                moves[i]=[[pos[0], pos[1]],[moves[i][0], moves[i][1]]]
+            moves=self.convert_to_move(pos, moves, board)
         
         return moves
     
@@ -311,8 +339,7 @@ class knight(piece):
                             moves.append([pos[0]+dir_1*perm[0], pos[1]+dir_2*perm[1]])
         
         if len(moves)!=0:
-            for i in range(len(moves)):
-                moves[i]=[[pos[0], pos[1]],[moves[i][0], moves[i][1]]]
+            moves=self.convert_to_move(pos, moves, board)
         
         return moves
     
@@ -419,8 +446,7 @@ class king(piece):
                         break
         
         if len(moves)!=0:
-            for i in range(len(moves)):
-                moves[i]=[[pos[0], pos[1]],[moves[i][0], moves[i][1]]]
+            moves=self.convert_to_move(pos, moves, board)
         
         return moves
     

@@ -18,7 +18,8 @@ def load_images():
 
 def draw_board(screen, valid_moves, selected_start=None):
     colors=[p.Color("white"), p.Color("gray")]
-    if selected_start: valid_squares=[[elem[1][0], elem[1][1]] for elem in valid_moves if elem[0][0]==selected_start[0] and elem[0][1]==selected_start[1]]
+    print(valid_moves[0].start_row)
+    if selected_start: valid_squares=[[move.end_row, move.end_col] for move in valid_moves if move.start_row==selected_start[0] and move.start_col==selected_start[1]]
     for row in range(BOARD_DIM):
         for col in range(BOARD_DIM):
             color=colors[(row+col)%2]
@@ -60,7 +61,7 @@ def main():
     selected_start=False
     valid_moves=gs.get_valid_moves()
     
-    print(sys.getrecursionlimit())
+    sys.setrecursionlimit(3000)
     
     while running:
         for e in p.event.get():
@@ -80,7 +81,7 @@ def main():
                     if len(player_clicks)==1:
                         selected_start=[row, col]
                 if len(player_clicks)==2: # actually perform the move
-                    gs.move_piece(player_clicks[0], player_clicks[1])
+                    gs.move_piece(move(player_clicks[0], player_clicks[1], gs.get_board()))
                     valid_moves=gs.get_valid_moves() # calc new valid_moves when a move is made
                     player_clicks=[] # reset player clicks
                     sq_selected=() # also clear selected to be sure
