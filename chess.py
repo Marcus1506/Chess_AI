@@ -9,13 +9,13 @@ import ast
 BOARD_DIM=8
 
 class chess_board:
-    def __init__(self, id=0, whites_turn=True): # give chess board ids to make multiple instances possible
+    def __init__(self, id=0, whites_turn=True): # give chess board ids, making use of multiple instances easier if necessary
         self.board=np.full((8, 8), None, dtype=object)
         self.id=id
         self.whites_turn=whites_turn # means white starts
         self.move_log=[]
-        self.white_king_loc=[0,4]
-        self.black_king_loc=[7,4]
+        self.white_king_loc=[0,3]
+        self.black_king_loc=[7,3]
     
     def place_piece(self, position, piece):
         self.board[position[0],position[1]]=piece
@@ -23,8 +23,8 @@ class chess_board:
     def remove_piece(self, position):
         self.board[position[0],position[1]]=None
     
-    def move_piece(self, move): # I should actually use move object here
-        # because of timing issues illegal moves concerning check will be handled through the UI
+    def move_piece(self, move):
+        # because of timing issues illegal inputs for moves will be handled through the UI
         if self.board[move.start_row,move.start_col]!=None:
             # update king pos
             if isinstance(move.piece_moved, king):
@@ -73,10 +73,10 @@ class chess_board:
         for i in range(len(moves)-1, -1, -1):
             # active player makes move
             self.move_piece(moves[i])
-            # now check for opposing player if move results in checkmate
+            # now check if this move brought me into the checked state
             self.whites_turn=not self.whites_turn
             if self.in_check():
-                del moves[i]
+                moves.remove(moves[i])
             self.whites_turn=not self.whites_turn
             self.undo_move()
 
@@ -96,7 +96,6 @@ class chess_board:
         # because of the stored king locations, we dont have to move two times
         for move in opponents_moves:
             if move.end_row==row and move.end_col==col:
-                self.whites_turn=not self.whites_turn
                 return True
         return False
     
@@ -132,10 +131,10 @@ class chess_board:
         self.place_piece([7,2], bishop('b'))
         self.place_piece([0,-3], bishop('w'))
         self.place_piece([7,-3], bishop('b'))
-        self.place_piece([0,4], king('w'))
-        self.place_piece([7,4], king('b'))
-        self.place_piece([0,3], queen('w'))
-        self.place_piece([7,3], queen('b'))
+        self.place_piece([0,3], king('w'))
+        self.place_piece([7,3], king('b'))
+        self.place_piece([0,4], queen('w'))
+        self.place_piece([7,4], queen('b'))
 
 class move: # class for storing moves and analyzing future moves
     def __init__(self, start, end, board):
