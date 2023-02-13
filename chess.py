@@ -21,8 +21,8 @@ class chess_board:
         self.id=id
         self.whites_turn=whites_turn # means white starts
         self.move_log=[]
-        self.white_king_loc=[0,3]
-        self.black_king_loc=[7,3]
+        self.white_king_loc=WHITE_KING_START_LOC
+        self.black_king_loc=BLACK_KING_START_LOC
         # solution for castling: booleans which track if rooks where moved
         # turned into lists to accommodate for timing when undoing moves
         self.castling_white_king_side=[True]
@@ -49,34 +49,14 @@ class chess_board:
             self.place_piece([move.end_row, move.end_col], move.piece_moved)
             self.move_log.append(move)
             
-            # if moved piece was rook or king then set booleans:
-            # for better performance in late game additional checks in beginning
-            
-            # if isinstance(move.piece_moved, king) or isinstance(move.piece_moved, rook):
-                # if self.whites_turn:
-                    # if [move.start_row, move.start_col]==[0,3]:
-                        # self.castling_white_king_side.append(False)
-                        # self.castling_white_queen_side.append(False)
-                    # if [move.start_row, move.start_col]==[0,0]:
-                        # self.castling_white_king_side.append(False)
-                    # if [move.start_row, move.start_col]==[0,7]:
-                        # self.castling_white_queen_side.append(False)
-                # if not self.whites_turn:
-                    # if [move.start_row, move.start_col]==[7,3]:
-                        # self.castling_black_king_side.append(False)
-                        # self.castling_black_queen_side.append(False)
-                    # if [move.start_row, move.start_col]==[7,0]:
-                        # self.castling_black_king_side.append(False)
-                    # if [move.start_row, move.start_col]==[7,7]:
-                        # self.castling_black_queen_side.append(False)
-            
-            # somehow this gets really ugly
+            # updating castling timelines:
+            # check for instance not required since its impossible for a piece to be not king and start on king square
             # white king side
             if self.castling_white_king_side[-1]==False:
                 self.castling_white_king_side.append(False)
             elif [move.start_row, move.start_col]==WHITE_KING_START_LOC:
                 self.castling_white_king_side.append(False)
-            elif [move.start_row, move.start_col]==WHITE_ROOK_KING_START_LOC:
+            elif [move.start_row, move.start_col]==WHITE_ROOK_KING_START_LOC and isinstance(move.piece_moved, rook):
                 self.castling_white_king_side.append(False)
             # white queen side
             if self.castling_white_queen_side[-1]==False:
@@ -111,7 +91,12 @@ class chess_board:
                         self.remove_piece(WHITE_ROOK_QUEEN_START_LOC)
                         self.place_piece([0,4], rook('w'))
                 if not self.whites_turn:
-                    pass
+                    if move.end_col==1:
+                        self.remove_piece(BLACK_ROOK_KING_START_LOC)
+                        self.place_piece([7,2], rook('b'))
+                    if move.end_col==5:
+                        self.remove_piece(BLACK_ROOK_QUEEN_START_LOC)
+                        self.place_piece([7,4], rook('b'))
             
             self.whites_turn=(not self.whites_turn)
         else:
@@ -154,7 +139,13 @@ class chess_board:
                     self.remove_piece([0,4])
                     self.place_piece(WHITE_ROOK_QUEEN_START_LOC, rook('w'))
             if self.whites_turn:
-                pass
+                if last_move.end_col==1:
+                    self.remove_piece([7,2])
+                    self.place_piece(BLACK_ROOK_KING_START_LOC, rook('b'))
+                if last_move.end_col==5:
+                    self.remove_piece([7,4])
+                    self.place_piece(BLACK_ROOK_QUEEN_START_LOC, rook('b'))
+                
         
         self.whites_turn=not self.whites_turn
         
@@ -163,26 +154,27 @@ class chess_board:
         moves=[]
         for row in range(BOARD_DIM):
             for col in range(BOARD_DIM):
-                cur_obj=self.board[row, col]
-                if cur_obj==None: continue
-                else: moves+=cur_obj.get_moves(self, [row, col])
+                cur_piece=self.board[row, col]
+                if cur_piece==None: continue
+                else: moves+=cur_piece.get_moves(self, [row, col])
         
         # if castling is enabled through booleans and squares are available add them to possible moves here
         # additional check for better endgame performance:
-        if self.castling_black_king_side or self.castling_black_queen_side or self.castling_white_king_side or self.castling_white_queen_side:
+        if self.castling_black_king_side[-1] or self.castling_black_queen_side[-1] or self.castling_white_king_side[-1] or self.castling_white_queen_side[-1]:
             if self.whites_turn:
                 if self.castling_white_king_side[-1]:
                     if not self.board[0,1] and not self.board[0,2]:
-                        moves.append(move([0, 3], [0,1], self.board, castling_move=True))
+                        moves.append(move(WHITE_KING_START_LOC, [0,1], self.board))
                 if self.castling_white_queen_side[-1]:
                     if not self.board[0,4] and not self.board[0,5] and not self.board[0,6]:
-                        moves.append(move([0, 3], [0,5], self.board, castling_move=True))
+                        moves.append(move(WHITE_KING_START_LOC, [0,5], self.board))
             if not self.whites_turn:
-                if self.castling_black_king_side:
-                    pass
-                if self.castling_black_queen_side:
-                    pass
-                    
+                if self.castling_black_king_side[-1]:
+                    if not self.board[7,1] and not self.board[7,2]:
+                        moves.append(move(BLACK_KING_START_LOC, [7,1], self.board))
+                if self.castling_black_queen_side[-1]:
+                    if not self.board[7,4] and not self.board[7,5] and not self.board[7,6]:
+                        moves.append(move(BLACK_KING_START_LOC, [7,5], self.board))
                 
         return moves
     
@@ -272,6 +264,10 @@ class move: # class for storing moves and analyzing future moves
         # no peace captured would mean None dtype, and it simplifies some following implementations
         self.piece_captured=board[end[0], end[1]]
         self.castling_move=castling_move
+        # if move not in standard king moves make it a castle move (this is needed for creating the instance in the UI, AI does not need this!)
+        # castling moves change generally change columns by 2
+        if isinstance(self.piece_moved, king) and abs(self.end_col-self.start_col)==2:
+            self.castling_move=True
         
     
     def __eq__(self, other):
