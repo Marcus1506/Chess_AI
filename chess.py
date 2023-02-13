@@ -7,6 +7,13 @@ import ast
 # convention: white at the top
 
 BOARD_DIM=8
+# since possible castling moves has to be tracked, the following piece positions are global variables:
+WHITE_KING_START_LOC=[0,3]
+WHITE_ROOK_KING_START_LOC=[0,0]
+WHITE_ROOK_QUEEN_START_LOC=[0,7]
+BLACK_KING_START_LOC=[7,3]
+BLACK_ROOK_KING_START_LOC=[7,0]
+BLACK_ROOK_QUEEN_START_LOC=[7,7]
 
 class chess_board:
     def __init__(self, id=0, whites_turn=True): # give chess board ids, making use of multiple instances easier if necessary
@@ -16,6 +23,12 @@ class chess_board:
         self.move_log=[]
         self.white_king_loc=[0,3]
         self.black_king_loc=[7,3]
+        # solution for castling: booleans which track if rooks where moved
+        # turned into lists to accommodate for timing when undoing moves
+        self.castling_white_king_side=[True]
+        self.castling_white_queen_side=[True]
+        self.castling_black_king_side=[True]
+        self.castling_black_queen_side=[True]
     
     def place_piece(self, position, piece):
         self.board[position[0],position[1]]=piece
@@ -35,6 +48,71 @@ class chess_board:
             self.remove_piece([move.start_row, move.start_col])
             self.place_piece([move.end_row, move.end_col], move.piece_moved)
             self.move_log.append(move)
+            
+            # if moved piece was rook or king then set booleans:
+            # for better performance in late game additional checks in beginning
+            
+            # if isinstance(move.piece_moved, king) or isinstance(move.piece_moved, rook):
+                # if self.whites_turn:
+                    # if [move.start_row, move.start_col]==[0,3]:
+                        # self.castling_white_king_side.append(False)
+                        # self.castling_white_queen_side.append(False)
+                    # if [move.start_row, move.start_col]==[0,0]:
+                        # self.castling_white_king_side.append(False)
+                    # if [move.start_row, move.start_col]==[0,7]:
+                        # self.castling_white_queen_side.append(False)
+                # if not self.whites_turn:
+                    # if [move.start_row, move.start_col]==[7,3]:
+                        # self.castling_black_king_side.append(False)
+                        # self.castling_black_queen_side.append(False)
+                    # if [move.start_row, move.start_col]==[7,0]:
+                        # self.castling_black_king_side.append(False)
+                    # if [move.start_row, move.start_col]==[7,7]:
+                        # self.castling_black_queen_side.append(False)
+            
+            # somehow this gets really ugly
+            # white king side
+            if self.castling_white_king_side[-1]==False:
+                self.castling_white_king_side.append(False)
+            elif [move.start_row, move.start_col]==WHITE_KING_START_LOC:
+                self.castling_white_king_side.append(False)
+            elif [move.start_row, move.start_col]==WHITE_ROOK_KING_START_LOC:
+                self.castling_white_king_side.append(False)
+            # white queen side
+            if self.castling_white_queen_side[-1]==False:
+                self.castling_white_queen_side.append(False)
+            elif [move.start_row, move.start_col]==WHITE_KING_START_LOC:
+                self.castling_white_queen_side.append(False)
+            elif [move.start_row, move.start_col]==WHITE_ROOK_QUEEN_START_LOC:
+                self.castling_white_queen_side.append(False)
+            # black king side
+            if self.castling_black_king_side[-1]==False:
+                self.castling_black_king_side.append(False)
+            elif [move.start_row, move.start_col]==BLACK_KING_START_LOC:
+                self.castling_black_king_side.append(False)
+            elif [move.start_row, move.start_col]==BLACK_ROOK_KING_START_LOC:
+                self.castling_black_king_side.append(False)
+            # black queen side
+            if self.castling_black_queen_side[-1]==False:
+                self.castling_black_queen_side.append(False)
+            elif [move.start_row, move.start_col]==BLACK_KING_START_LOC:
+                self.castling_black_queen_side.append(False)
+            elif [move.start_row, move.start_col]==BLACK_ROOK_QUEEN_START_LOC:
+                self.castling_black_queen_side.append(False)
+            
+            
+            # if move was castle move, additional piece placement required:
+            if move.castling_move:
+                if self.whites_turn:
+                    if move.end_col==1:
+                        self.remove_piece(WHITE_ROOK_KING_START_LOC)
+                        self.place_piece([0,2], rook('w'))
+                    if move.end_col==5:
+                        self.remove_piece(WHITE_ROOK_QUEEN_START_LOC)
+                        self.place_piece([0,4], rook('w'))
+                if not self.whites_turn:
+                    pass
+            
             self.whites_turn=(not self.whites_turn)
         else:
             print("cant move None")
@@ -45,7 +123,7 @@ class chess_board:
         self.board[last_move.end_row, last_move.end_col]=last_move.piece_captured
         self.board[last_move.start_row, last_move.start_col]=last_move.piece_moved
         self.move_log.pop()
-        self.whites_turn=not self.whites_turn
+        
         # update king pos
         if last_move.piece_moved.key=='wK':
             self.white_king_loc=[last_move.start_row, last_move.start_col]
@@ -53,7 +131,33 @@ class chess_board:
         elif last_move.piece_moved.key=='bK':
             self.black_king_loc=[last_move.start_row, last_move.start_col]
             print("new black king location: ", self.black_king_loc)
-    
+        
+        # resetting booleans of possible castling
+        # I can pop booleans if last is False
+        # this way it tracks castlemoves correctly in a True, False - move timeline
+        if self.castling_white_king_side[-1]==False:
+            self.castling_white_king_side.pop()
+        if self.castling_white_queen_side[-1]==False:
+            self.castling_white_queen_side.pop()
+        if self.castling_black_king_side[-1]==False:
+            self.castling_black_king_side.pop()
+        if self.castling_black_queen_side[-1]==False:    
+            self.castling_black_queen_side.pop()
+        
+        # if last move was castling moves, two piece movements have to be undone
+        if last_move.castling_move:
+            if not self.whites_turn: # undoing while blacks turn means moving white pieces
+                if last_move.end_col==1:
+                    self.remove_piece([0,2])
+                    self.place_piece(WHITE_ROOK_KING_START_LOC, rook('w'))
+                if last_move.end_col==5:
+                    self.remove_piece([0,4])
+                    self.place_piece(WHITE_ROOK_QUEEN_START_LOC, rook('w'))
+            if self.whites_turn:
+                pass
+        
+        self.whites_turn=not self.whites_turn
+        
     def get_possible_moves(self):
         # generate a list of all possible moves
         moves=[]
@@ -62,6 +166,24 @@ class chess_board:
                 cur_obj=self.board[row, col]
                 if cur_obj==None: continue
                 else: moves+=cur_obj.get_moves(self, [row, col])
+        
+        # if castling is enabled through booleans and squares are available add them to possible moves here
+        # additional check for better endgame performance:
+        if self.castling_black_king_side or self.castling_black_queen_side or self.castling_white_king_side or self.castling_white_queen_side:
+            if self.whites_turn:
+                if self.castling_white_king_side[-1]:
+                    if not self.board[0,1] and not self.board[0,2]:
+                        moves.append(move([0, 3], [0,1], self.board, castling_move=True))
+                if self.castling_white_queen_side[-1]:
+                    if not self.board[0,4] and not self.board[0,5] and not self.board[0,6]:
+                        moves.append(move([0, 3], [0,5], self.board, castling_move=True))
+            if not self.whites_turn:
+                if self.castling_black_king_side:
+                    pass
+                if self.castling_black_queen_side:
+                    pass
+                    
+                
         return moves
     
     def get_valid_moves(self):
@@ -98,7 +220,7 @@ class chess_board:
             if move.end_row==row and move.end_col==col:
                 return True
         return False
-    
+   
     def get_board(self):
         return self.board
     
@@ -137,7 +259,7 @@ class chess_board:
         self.place_piece([7,4], queen('b'))
 
 class move: # class for storing moves and analyzing future moves
-    def __init__(self, start, end, board):
+    def __init__(self, start, end, board, castling_move=False):
         # store all the important information for a move
         # maybe also add boardstate, could be important for AI later on
         self.start_row=start[0]
@@ -149,6 +271,7 @@ class move: # class for storing moves and analyzing future moves
         # this direct approach for setting the piece captured is very intuitive
         # no peace captured would mean None dtype, and it simplifies some following implementations
         self.piece_captured=board[end[0], end[1]]
+        self.castling_move=castling_move
         
     
     def __eq__(self, other):
@@ -415,29 +538,20 @@ class king(piece):
                 if 0 <= pos_1[0] < BOARD_DIM:
                     if board[pos_1[0], pos_1[1]]==None:
                         moves.append([pos_1[0], pos_1[1]])
-                    elif board[pos_1[0], pos_1[1]].color==self.color:
-                        continue
-                    else:
+                    elif board[pos_1[0], pos_1[1]].color!=self.color:
                         moves.append([pos_1[0], pos_1[1]])
-                        continue
                 
                 if 0 <= pos_2[1] < BOARD_DIM:
                     if board[pos_2[0], pos_2[1]]==None:
                         moves.append([pos_2[0], pos_2[1]])
-                    elif board[pos_2[0], pos_2[1]].color==self.color:
-                        continue
-                    else:
+                    elif board[pos_2[0], pos_2[1]].color!=self.color:
                         moves.append([pos_2[0], pos_2[1]])
-                        continue
                 
                 if 0 <= pos_3[0] < BOARD_DIM and 0 <= pos_3[1] < BOARD_DIM:
                     if board[pos_3[0], pos_3[1]]==None:
                         moves.append([pos_3[0], pos_3[1]])
-                    elif board[pos_3[0], pos_3[1]].color==self.color:
-                        continue
-                    else:
+                    elif board[pos_3[0], pos_3[1]].color!=self.color:
                         moves.append([pos_3[0], pos_3[1]])
-                        continue
         
         if len(moves)!=0:
             moves=self.convert_to_move(pos, moves, board)
