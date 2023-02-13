@@ -41,19 +41,38 @@ def draw_pieces(screen, board):
                 screen.blit(IMAGES[piece.key], p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
 
 def draw_endgame_message(screen, gs):
-    font1=p.font.Font(None, 50)
-    text1=font1.render("The games has ended!", True, (0,0,0))
-    text1_rect=text1.get_rect()
-    text1_rect.centerx=screen.get_rect().centerx
-    text1_rect.centery=screen.get_rect().centery-20
-    screen.blit(text1, text1_rect)
-    
-    font2=p.font.Font(None, 30)
-    text2=font2.render("Press ENTER to restart", True, (0,0,0))
-    text2_rect=text2.get_rect()
-    text2_rect.centerx=screen.get_rect().centerx
-    text2_rect.centery=screen.get_rect().centery+20
-    screen.blit(text2, text2_rect)
+    if gs.checkmate:
+        if gs.whites_turn:
+            winner="Black"
+        else:
+            winner="White"
+        font1=p.font.Font(None, 50)
+        text1=font1.render(winner+" has won the game!", True, (0,0,0))
+        text1_rect=text1.get_rect()
+        text1_rect.centerx=screen.get_rect().centerx
+        text1_rect.centery=screen.get_rect().centery-20
+        screen.blit(text1, text1_rect)
+        
+        font2=p.font.Font(None, 30)
+        text2=font2.render("Press ENTER to restart", True, (0,0,0))
+        text2_rect=text2.get_rect()
+        text2_rect.centerx=screen.get_rect().centerx
+        text2_rect.centery=screen.get_rect().centery+20
+        screen.blit(text2, text2_rect)
+    elif gs.stalemate:
+        font1=p.font.Font(None, 50)
+        text1=font1.render("Stalemate, its a draw!", True, (0,0,0))
+        text1_rect=text1.get_rect()
+        text1_rect.centerx=screen.get_rect().centerx
+        text1_rect.centery=screen.get_rect().centery-20
+        screen.blit(text1, text1_rect)
+        
+        font2=p.font.Font(None, 30)
+        text2=font2.render("Press ENTER to restart", True, (0,0,0))
+        text2_rect=text2.get_rect()
+        text2_rect.centerx=screen.get_rect().centerx
+        text2_rect.centery=screen.get_rect().centery+20
+        screen.blit(text2, text2_rect)
 
 def draw_game_state(screen, gs, valid_moves, selected_start):
     draw_board(screen, valid_moves, selected_start)
