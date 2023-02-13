@@ -40,15 +40,22 @@ def draw_pieces(screen, board):
             if piece != None:
                 screen.blit(IMAGES[piece.key], p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
 
+def draw_endgame_message(screen, gs):
+    pass
+
 def draw_game_state(screen, gs, valid_moves, selected_start):
     draw_board(screen, valid_moves, selected_start)
     
     draw_pieces(screen, gs.get_board())
+    
+    if len(valid_moves)==0:
+        draw_endgame_message(screen, gs)
 
 
 def main():
     p.init() # maybe initialize before, could lead to problems later
     screen=p.display.set_mode((LENGTH, LENGTH))
+    p.display.set_caption("CHESS AI - PROJECT")
     clock=p.time.Clock()
     screen.fill(p.Color("white"))
     gs=chess_board() # id for first gamestate is 0
@@ -60,7 +67,7 @@ def main():
     selected_start=False
     valid_moves=gs.get_valid_moves()
     
-    sys.setrecursionlimit(3000)
+    sys.setrecursionlimit(1200) # 1000 is standard
     
     while running:
         for e in p.event.get():
@@ -96,6 +103,9 @@ def main():
             elif e.type==p.KEYDOWN:
                 if e.key==p.K_z and gs.move_log:
                     gs.undo_move()
+                    valid_moves=gs.get_valid_moves()
+                if e.key==p.K_RETURN and len(valid_moves)==0:
+                    gs.reset_board()
                     valid_moves=gs.get_valid_moves()
                 
         

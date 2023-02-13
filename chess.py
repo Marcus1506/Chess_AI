@@ -7,7 +7,7 @@ import ast
 # convention: white at the top
 
 BOARD_DIM=8
-# since possible castling moves has to be tracked, the following piece positions are global variables:
+# since possible castling moves have to be tracked, its convenient to define the following variables globally:
 WHITE_KING_START_LOC=[0,3]
 WHITE_ROOK_KING_START_LOC=[0,0]
 WHITE_ROOK_QUEEN_START_LOC=[0,7]
@@ -29,6 +29,9 @@ class chess_board:
         self.castling_white_queen_side=[True]
         self.castling_black_king_side=[True]
         self.castling_black_queen_side=[True]
+        
+        self.checkmate=False
+        self.stalemate=False
     
     def place_piece(self, position, piece):
         self.board[position[0],position[1]]=piece
@@ -145,7 +148,10 @@ class chess_board:
                 if last_move.end_col==5:
                     self.remove_piece([7,4])
                     self.place_piece(BLACK_ROOK_QUEEN_START_LOC, rook('b'))
-                
+        
+        # undoing moves means setting checkmate and stalemate to False is always a valid operation
+        self.checkmate=False
+        self.stalemate=False
         
         self.whites_turn=not self.whites_turn
         
@@ -193,7 +199,14 @@ class chess_board:
                 moves.remove(moves[i])
             self.whites_turn=not self.whites_turn
             self.undo_move()
-
+            
+        # update checkmate and stalemate states:
+        if len(moves)==0:
+            if self.in_check():
+                self.checkmate=True
+            else:
+                self.stalemate=True
+        
         return moves
         
     def in_check(self): # if player on the move is in check returns True
@@ -230,13 +243,24 @@ class chess_board:
         print(self.board)
     
     def reset_board(self):
+        self.board=np.full((8, 8), None, dtype=object)
+        self.move_log=[]
         for i in range(8):
             self.place_piece([1,i], pawn('w'))
             self.place_piece([6,i], pawn('b'))
-        self.place_piece([0,0], rook('w'))
-        self.place_piece([0,7], rook('w'))
-        self.place_piece([7,0], rook('b'))
-        self.place_piece([7,7], rook('b'))
+        
+        self.castling_white_king_side=[True]
+        self.castling_white_queen_side=[True]
+        self.castling_black_king_side=[True]
+        self.castling_black_queen_side=[True]
+        
+        self.checkmate=False
+        self.stalemate=False
+        
+        self.place_piece(WHITE_ROOK_KING_START_LOC, rook('w'))
+        self.place_piece(WHITE_ROOK_QUEEN_START_LOC, rook('w'))
+        self.place_piece(BLACK_ROOK_KING_START_LOC, rook('b'))
+        self.place_piece(BLACK_ROOK_QUEEN_START_LOC, rook('b'))
         self.place_piece([0,1], knight('w'))
         self.place_piece([0,-2], knight('w'))
         self.place_piece([7,1], knight('b'))
@@ -245,8 +269,8 @@ class chess_board:
         self.place_piece([7,2], bishop('b'))
         self.place_piece([0,-3], bishop('w'))
         self.place_piece([7,-3], bishop('b'))
-        self.place_piece([0,3], king('w'))
-        self.place_piece([7,3], king('b'))
+        self.place_piece(WHITE_KING_START_LOC, king('w'))
+        self.place_piece(BLACK_KING_START_LOC, king('b'))
         self.place_piece([0,4], queen('w'))
         self.place_piece([7,4], queen('b'))
 
