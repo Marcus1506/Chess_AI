@@ -4,12 +4,17 @@
 from chess import *
 import pygame as p
 import sys
+from MiniMaxAlgo import *
 
 
-LENGTH = 512 # divides neatly by 8
-SQR_SIZE = 64
-MAX_FPS = 20
-IMAGES = {}
+LENGTH=512 # divides neatly by 8
+SQR_SIZE=64
+MAX_FPS=20
+IMAGES={}
+
+WHITE_AI=True
+BLACK_AI=True
+
 
 def load_images():
     names=['wp', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bp', 'bR', 'bN', 'bB', 'bK', 'bQ']
@@ -30,8 +35,7 @@ def draw_board(screen, valid_moves, selected_start=None):
                     p.draw.rect(screen, p.Color("yellow", alpha=128), p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
                     continue
                 if [row, col] in valid_squares:
-                    p.draw.rect(screen, p.Color("yellow", alpha=128), p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))
-                
+                    p.draw.rect(screen, p.Color("yellow", alpha=128), p.Rect(col*SQR_SIZE, row*SQR_SIZE, SQR_SIZE, SQR_SIZE))             
 
 def draw_pieces(screen, board):
     for row in range(BOARD_DIM):
@@ -100,36 +104,39 @@ def main():
     sys.setrecursionlimit(1200) # 1000 is standard
     
     while running:
+        human_turn=(gs.whites_turn and not WHITE_AI) or ( not gs.whites_turn and not BLACK_AI)
         for e in p.event.get():
             if e.type==p.QUIT: # makes it possible to quit
                 running=False
             # mouse actions
+
             elif e.type==p.MOUSEBUTTONDOWN:
-                location=p.mouse.get_pos() # (x, y) location of mouse
-                col=location[0]//SQR_SIZE
-                row=location[1]//SQR_SIZE
-                if sq_selected==(row, col): # double click on same square
-                    sq_selected=()
-                    player_clicks=[]
-                else:
-                    sq_selected= (row, col)
-                    player_clicks.append(sq_selected)
-                    if len(player_clicks)==1:
-                        selected_start=[row, col]
-                if len(player_clicks)==2: # actually perform the move
-                    desired_move=move(player_clicks[0], player_clicks[1], gs.get_board())
-                    if desired_move in valid_moves:
-                        gs.move_piece(desired_move)
-                        valid_moves=gs.get_valid_moves() # calc new valid_moves when a move is made
-                        player_clicks=[] # reset player clicks
-                        sq_selected=() # also clear selected to be sure
-                        selected_start=False
-                        print(valid_moves)
-                    else:
-                        print("invalid move")
-                        player_clicks=[]
+                if human_turn:
+                    location=p.mouse.get_pos() # (x, y) location of mouse
+                    col=location[0]//SQR_SIZE
+                    row=location[1]//SQR_SIZE
+                    if sq_selected==(row, col): # double click on same square
                         sq_selected=()
-                        selected_start=False
+                        player_clicks=[]
+                    else:
+                        sq_selected=(row, col)
+                        player_clicks.append(sq_selected)
+                        if len(player_clicks)==1:
+                            selected_start=[row, col]
+                    if len(player_clicks)==2: # actually perform the move
+                        desired_move=move(player_clicks[0], player_clicks[1], gs.get_board())
+                        if desired_move in valid_moves:
+                            gs.move_piece(desired_move)
+                            valid_moves=gs.get_valid_moves() # calc new valid_moves when a move is made
+                            player_clicks=[] # reset player clicks
+                            sq_selected=() # also clear selected to be sure
+                            selected_start=False
+                            print(valid_moves)
+                        else:
+                            print("invalid move")
+                            player_clicks=[]
+                            sq_selected=()
+                            selected_start=False
             elif e.type==p.KEYDOWN:
                 if e.key==p.K_z and gs.move_log:
                     gs.undo_move()
@@ -137,6 +144,11 @@ def main():
                 if e.key==p.K_RETURN and len(valid_moves)==0:
                     gs.reset_board()
                     valid_moves=gs.get_valid_moves()
+            
+        if not human_turn and len(valid_moves)!=0:
+            AI_move=find_good_move(gs, valid_moves)
+            gs.move_piece(AI_move)
+            valid_moves=gs.get_valid_moves()
                 
         
         draw_game_state(screen, gs, valid_moves, selected_start)
@@ -144,11 +156,7 @@ def main():
         clock.tick(MAX_FPS) # set max update rate
         p.display.flip() # update entire display to reflect changes
     
-    
     p.quit() # good practice to actually close the initialization
 
 if __name__=="__main__":
     main()
-    
-    
-    

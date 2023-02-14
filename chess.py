@@ -149,10 +149,8 @@ class chess_board:
         # update king pos
         if last_move.piece_moved.key=='wK':
             self.white_king_loc=[last_move.start_row, last_move.start_col]
-            print("new white king location: ", self.white_king_loc)
         elif last_move.piece_moved.key=='bK':
             self.black_king_loc=[last_move.start_row, last_move.start_col]
-            print("new black king location: ", self.black_king_loc)
         
         # CASTLING MOVES:
         # resetting booleans of possible castling
@@ -369,9 +367,9 @@ class move: # class for storing moves and analyzing future moves
         # in our logic, initializing a move which ends in None and changes column of a pawn, has to be an en_passant move
         if isinstance(self.piece_moved, pawn) and self.start_col!=self.end_col and self.board[self.end_row, self.end_col]==None:
             self.en_passant=True
-            if self.piece_moved.en_passant_right:
+            if self.piece_moved.en_passant_right[-1]:
                 self.piece_captured_right=board[self.start_row, self.start_col-1]
-            if self.piece_moved.en_passant_left:
+            if self.piece_moved.en_passant_left[-1]:
                 self.piece_captured_left=board[self.start_row, self.start_col+1]
     
     def __eq__(self, other):
