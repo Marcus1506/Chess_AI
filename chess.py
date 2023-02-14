@@ -127,7 +127,12 @@ class chess_board:
                     and isinstance(self.board[move.end_row, move.end_col-1], pawn)
                     and self.board[move.end_row, move.end_col-1].color!=move.piece_moved.color):
                     self.board[move.end_row, move.end_col-1].en_passant_left[-1]=True
-                
+                # HANDLING PAWN PROMOTION:
+                if move.end_row==0:
+                    self.place_piece([move.end_row, move.end_col], queen('b'))
+                elif move.end_row==7:
+                    self.place_piece([move.end_row, move.end_col], queen('w'))
+                # undoing pawn promotion happens automatically with established undoing logic
             
             self.whites_turn=(not self.whites_turn)
         else:
@@ -193,11 +198,9 @@ class chess_board:
             elif last_move.end_col-1==last_move.start_col:
                 self.remove_piece([last_move.end_row, last_move.end_col])
                 self.place_piece([last_move.start_row, last_move.start_col], last_move.piece_moved)
-                print(type(last_move.piece_captured))
                 self.place_piece([last_move.start_row, last_move.start_col+1], last_move.piece_captured_left)
         
-        self.undo_en_passant_states()
-        
+        self.undo_en_passant_states() # deleting last elements of en passant timelines
         
         # undoing moves means setting checkmate and stalemate to False is always a valid operation
         self.checkmate=False
@@ -239,19 +242,6 @@ class chess_board:
         # no need for deep copy since undo_move() can be used instead
         
         moves=self.get_possible_moves()
-
-        print("before evaluating valid moves")
-        count=1
-        for i in range(np.shape(self.board)[0]):
-            for j in range(np.shape(self.board)[1]):
-                piece=self.board[i,j]
-                if isinstance(piece, pawn):
-                    print(count)
-                    print(piece.en_passant_right)
-                    print(piece.en_passant_left)
-                    count+=1
-        
-        print("getting valid moves now")
         
         for i in range(len(moves)-1, -1, -1):
             # active player makes move
@@ -270,17 +260,6 @@ class chess_board:
             else:
                 self.stalemate=True
         
-        count=1
-        for i in range(np.shape(self.board)[0]):
-            for j in range(np.shape(self.board)[1]):
-                piece=self.board[i,j]
-                if isinstance(piece, pawn):
-                    print(count)
-                    print(piece.en_passant_right)
-                    print(piece.en_passant_left)
-                    count+=1
-        
-        print("finished getting valid moves")
         return moves
         
     def in_check(self): # if player on the move is in check returns True
@@ -377,12 +356,14 @@ class move: # class for storing moves and analyzing future moves
         # this direct approach for setting the piece captured is very intuitive
         # no peace captured would mean None dtype, and it simplifies some following implementations
         self.piece_captured=board[end[0], end[1]]
+        
         # HANDLING CASTLING MOVES:
         self.castling_move=castling_move
         # if move not in standard king moves make it a castle move (this is needed for creating the instance in the UI, AI does not need this!)
         # castling moves change generally change columns by 2
         if isinstance(self.piece_moved, king) and abs(self.end_col-self.start_col)==2:
             self.castling_move=True
+        
         # HANDLING EN-PASSANT MOVES:
         self.en_passant=en_passant
         # in our logic, initializing a move which ends in None and changes column of a pawn, has to be an en_passant move
