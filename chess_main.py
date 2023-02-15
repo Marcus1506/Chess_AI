@@ -1,10 +1,10 @@
 
 # convention: white start at the top
 
-from chess import *
+from chess_module import *
 import pygame as p
 import sys
-from MiniMaxAlgo import *
+from MiniMaxAlgo import find_good_move
 
 
 LENGTH=512 # divides neatly by 8
