@@ -4,7 +4,8 @@ DEPTH=2
 CHECKMATE_SCORE=1000
 STALEMATE_SCORE=0
 
-DUMB_PIECE_SCORES={'p': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9}
+DUMB_PIECE_SCORES={'p': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 4} # king value here only for neural network input
+# the value of 4 is chosen, becaue in the later stages of the game the king becomes more and more powerful
 
 def dumb_eval(gs): # a dumb way of evaluating positions on the chess board
     if gs.checkmate:

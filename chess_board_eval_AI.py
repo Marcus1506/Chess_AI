@@ -33,7 +33,7 @@ import json
 def extract_moves(source_file, target_file):
     matches=[]
     # create a pattern for recognizing move counts, endgame results, + signs
-    remove_patterns=re.compile(r"\d+\.|\d-\d|\d/\d-\d/\d|\+|x") # pawn promotions are left in (eg. '=Q')
+    remove_patterns=re.compile(r"\d+\.|\d-\d|\d/\d-\d/\d|\+|x|#") # pawn promotions are left in (eg. '=Q')
     with open(source_file) as source:
         for line in source:
             line=line.strip()
@@ -48,23 +48,66 @@ def extract_moves(source_file, target_file):
     
     json_data=json.dumps(matches)
     
-    with open(target_file, "w") as f:
-        f.write(json_data)
+    with open(target_file, "w") as target:
+        target.write(json_data)
     
-def generate_board_states(source_file, target_file):
+def generate_board_states_board_rep(source_file, target_dir):
     boards=[]
     gamestate=chess_board()
+    count=0
     with open(source_file, "r") as source:
         json_data=source.read()
         matches=json.loads(json_data)
         for match in matches:
             gamestate.reset_board()
+            count+=1
+            print("Generating board states of game number: ", count)
             for move in match:
-                gamestate.make_move_UCI(string)
+                gamestate.make_move_UCI(move)
+                gamestate.whites_turn = not gamestate.whites_turn
+                rep=gamestate.convert_to_board_representation()
+                boards.append(rep)
+    
+    # save boards into a file
+    # since we use numpy arrays, we want to use the .npy format
+    boards=np.array(boards)
+    np.save(target_dir+"boards_board_representation.npy", boards)
+
+def combine_evals_with_board_rep(eval_file, boards_rep_file, target_file):
+    boards=np.load(boards_rep_file)
+    
+    with open(eval_file) as evals:
+        for line in evals:
+            if re.match(r"^\d", line):
+                pass
+            else:
+                continue
+    
+'''
+Extract the moves from the data and write them into a JSON file:
+'''
+
+# extract_moves("data/evaluated_positions/data.pgn", "data/evaluated_positions/extracted_moves.json")
+
+'''
+Generate board states from the extracted moves, and write them ordered into a numpy array:
+'''
+
+# generate_board_states_board_rep("data/evaluated_positions/extracted_moves.json", "data/evaluated_positions/")
+
+'''
+Now get board evaluations from stockfish.csv and pair them with corresponding board states to form our base dataset for the NN:
+'''
+
+combine_evals_with_board_rep("data/evaluated_positions/extracted_moves.json", "data/evaluated_positions/boards_board_representation.npy", "test")
 
 
 
-# write JSON string to a file
-extract_moves("data/evaluated_positions/data.pgn", "data/evaluated_positions/extracted_moves.json")
-
-# read the JSON string from the file and convert it back to a Python list
+# CODE FOR DEBUGGING STANDARDIZED MOVE READ-INS:
+# gamestate=chess_board()
+# gamestate.reset_board()
+# while True:
+    # print(gamestate)
+    # next_move=input("next move in standard notation: ")
+    # gamestate.make_move_UCI(next_move)
+    # gamestate.whites_turn=not gamestate.whites_turn

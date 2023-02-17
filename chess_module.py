@@ -1,5 +1,7 @@
 import numpy as np
 import ast
+from MiniMaxAlgo import DUMB_PIECE_SCORES # needed for neural network input in board representation
+
 
 # having the pieces in chess_board not directly labeled according to their IMAGE makes the __ini__ functions of the piece classes really messy
 # maybe try to change that
@@ -14,6 +16,10 @@ WHITE_ROOK_QUEEN_START_LOC=[0,7]
 BLACK_KING_START_LOC=[7,3]
 BLACK_ROOK_KING_START_LOC=[7,0]
 BLACK_ROOK_QUEEN_START_LOC=[7,7]
+
+# dicts for mapping algebraic chess notation to numeric matrix indices
+ROW_MAP={'1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6, '8': 7}
+COL_MAP={'h': 0, 'g': 1, 'f': 2, 'e': 3, 'd': 4, 'c': 5, 'b': 6, 'a': 7}
 
 class chess_board:
     def __init__(self, id=0, whites_turn=True): # give chess board ids, making use of multiple instances easier if necessary
@@ -234,7 +240,7 @@ class chess_board:
                         moves.append(move(BLACK_KING_START_LOC, [7,5], self.board))
                 
         return moves
-    
+        
     def get_valid_moves(self):
         # moves which end in a checkmate are not allowed and get filtered here
         # no need for deep copy since undo_move() can be used instead
@@ -287,11 +293,13 @@ class chess_board:
         self.move_log=move_log
     
     def __str__(self):
-        print(self.board)
+        rep=np.where(self.board==None, 0, self.board)
+        return str(rep)
     
     def __repr__(self):
         # implement a way to print board directly with None representatives
-        print(self.board)
+        rep=np.where(self.board==None, 0, self.board)
+        return str(rep)
     
     def reset_en_passant(self):
         for i in range(np.shape(self.board)[0]):
@@ -341,11 +349,124 @@ class chess_board:
         self.place_piece([0,4], queen('w'))
         self.place_piece([7,4], queen('b'))
 
-def make_move_UCI(self, string): # makes a move based on a UCI - like string (from extracted_moves.json)
-    pass
+    def get_possible_moves_simple(self): # for NN input generation
+        moves=[]
+        for row in range(BOARD_DIM):
+            for col in range(BOARD_DIM):
+                cur_piece=self.board[row, col]
+                if cur_piece==None: continue
+                else: moves.extend(cur_piece.get_moves(self, [row, col]))
+        return moves
 
-def convert_to_NN_input_data(self): # converts current gamestate into a NN handable form
-    pass
+    # methods used for data preparation of neural network training
+    def make_move_simple(self, move): # a simplified version of move_piece(), because this moves validness is guaranteed
+        self.remove_piece([move.start_row, move.start_col])
+        self.place_piece([move.end_row, move.end_col], move.piece_moved)
+
+    def make_move_UCI(self, string): # makes a move based on a UCI - like string (from extracted_moves.json)
+        # conventions used in chess: https://www.chess.com/article/view/chess-notation
+        # at the end of the string is always the end_square, at the beginning always the piece moved
+        
+        # CASTLING MOVES
+        # since castling moves are special in terms of their notation they are handled here:
+        if string=="O-O": # castling king side
+            if self.whites_turn:
+                self.remove_piece(WHITE_KING_START_LOC)
+                self.remove_piece(WHITE_ROOK_KING_START_LOC)
+                self.place_piece([0, 1], king('w'))
+                self.place_piece([0, 2], rook('w'))
+            else:
+                self.remove_piece(BLACK_KING_START_LOC)
+                self.remove_piece(BLACK_ROOK_KING_START_LOC)
+                self.place_piece([7,1], king('b'))
+                self.place_piece([7,2], rook('b'))
+        elif string=="O-O-O": # castling queen side
+            if self.whites_turn:
+                self.remove_piece(WHITE_KING_START_LOC)
+                self.remove_piece(WHITE_ROOK_QUEEN_START_LOC)
+                self.place_piece([0, 5], king('w'))
+                self.place_piece([0, 4], rook('w'))
+            else:
+                self.remove_piece(BLACK_KING_START_LOC)
+                self.remove_piece(BLACK_ROOK_QUEEN_START_LOC)
+                self.place_piece([7, 5], king('b'))
+                self.place_piece([7, 4], rook('b'))
+        
+        # PAWN PROMOTION
+        elif string[-2]=="=": # here length 4 AND 5 is possible, if move is not uniquely identifyable
+            valid_moves=self.get_possible_moves_simple() # possible moves are sufficient, because the database only has valid moves
+            promoted_piece_char=string[-1]
+            if len(string)==4:
+                end_pos=string[:2]
+                for move in valid_moves:
+                    if isinstance(move.piece_moved, pawn) and [move.end_row, move.end_col]==chess_board.algebraic_to_numeric(end_pos):
+                        self.remove_piece([move.start_row, move.start_col])
+                        if self.whites_turn:
+                            if promoted_piece_char=='Q':
+                                self.place_piece([move.end_row, move.end_col], queen('w'))
+                            elif promoted_piece_char=='N':
+                                self.place_piece([move.end_row, move.end_col], knight('w'))
+                            elif promoted_piece_char=='R':
+                                self.place_piece([move.end_row, move.end_col], rook('w'))
+                            else:
+                                self.place_piece([move.end_row, move.end_col], bishop('w'))
+                        else:
+                            if promoted_piece_char=='Q':
+                                self.place_piece([move.end_row, move.end_col], queen('b'))
+                            elif promoted_piece_char=='N':
+                                self.place_piece([move.end_row, move.end_col], knight('b'))
+                            elif promoted_piece_char=='R':
+                                self.place_piece([move.end_row, move.end_col], rook('b'))
+                            else:
+                                self.place_piece([move.end_row, move.end_col], bishop('b'))
+        
+        # there are several cases which can appear for normal moves:
+        # 1) there exists only one pawn which can move to end_pos: len(string)==2
+        # 2) there exists a standard move with non-pawn piece type or a pawn move which requires starting column: len(string)==3
+        # 3) non-pawn piece also requires starting column: len(string)==4
+        else:
+            valid_moves=self.get_possible_moves_simple()
+            end_pos=string[-2:] # last two characters - destination
+            if len(string)==2: # moves where only piece that can move there is a pawn
+                for move in valid_moves:
+                    end=chess_board.algebraic_to_numeric(end_pos)
+                    if [move.end_row, move.end_col]==end and isinstance(move.piece_moved, pawn):
+                        self.make_move_simple(move)
+            if len(string)==3: # can either be a pawn move which requires col, or a standard move with piece type
+                if string[0].isupper():
+                    piece_moved=string[0]
+                    for move in valid_moves:
+                        if move.piece_moved.rep==piece_moved and [move.end_row, move.end_col]==chess_board.algebraic_to_numeric(end_pos):
+                            self.make_move_simple(move)
+                else: # means a pawn move which required col
+                    for move in valid_moves:
+                        starting_col=COL_MAP[string[0]]
+                        if (isinstance(move.piece_moved, pawn) and move.start_col==starting_col and
+                            [move.end_row, move.end_col]==chess_board.algebraic_to_numeric(end_pos)):
+                            self.make_move_simple(move)
+            elif len(string)==4: # moves which need piece type, starting col and end square for identification
+                piece_moved=string[0]
+                starting_col=string[1]
+                for move in valid_moves:
+                    if ([move.end_row, move.end_col]==chess_board.algebraic_to_numeric(end_pos) and
+                        move.piece_moved.rep==piece_moved and move.start_col==starting_col):
+                        self.make_move_simple(move)
+    
+    @staticmethod
+    def algebraic_to_numeric(string):
+        return [ROW_MAP[string[1]], COL_MAP[string[0]]]
+    
+    def convert_to_board_representation(self): # prepare gamestate-data for Neural network input layer
+        integer_board=np.zeros((8, 8))
+        for i, row in enumerate(self.board):
+            for j, piece in enumerate(row):
+                if piece: # ignore None
+                    if piece.color=='w':
+                        value=DUMB_PIECE_SCORES[piece.rep]
+                    else:
+                        value=-DUMB_PIECE_SCORES[piece.rep]
+                    integer_board[i, j]=value
+        return integer_board
 
 class move: # class for storing moves and analyzing future moves
     def __init__(self, start, end, board, castling_move=False, en_passant=False):
@@ -390,6 +511,9 @@ class move: # class for storing moves and analyzing future moves
         return False
     
     def __repr__(self):
+        return str([self.start_row,self.start_col,self.end_row,self.end_col])
+    
+    def __str__(self):
         return str([self.start_row,self.start_col,self.end_row,self.end_col])
 
 class piece:
@@ -577,10 +701,10 @@ class knight(piece):
         return moves
     
     def __str__(self):
-        return "K"
+        return "N"
     
     def __repr__(self):
-        return "K"
+        return "N"
 
 class bishop(piece):
     def __init__(self, color):
@@ -675,7 +799,7 @@ class king(piece):
         return moves
     
     def __str__(self):
-        return "X"
+        return "K"
     
     def __repr__(self):
-        return "X"
+        return "K"

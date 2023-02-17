@@ -12,8 +12,8 @@ SQR_SIZE=64
 MAX_FPS=20
 IMAGES={}
 
-WHITE_AI=True
-BLACK_AI=True
+WHITE_AI=False
+BLACK_AI=False
 
 
 def load_images():
