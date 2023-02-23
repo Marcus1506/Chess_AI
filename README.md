@@ -1,7 +1,8 @@
 Chess engine with UI and trained NN
 
 basic function:
-"chess_main.py" provides interactable UI and mouse and key function, and controls some of the game logic.
+"chess_main.py" provides interactable UI and mouse and key function, and controls some of the game logic. To start the game,
+just execeute this python file.
 "chess_module.py" contains all of the needed classes and logic for the engine to function as well as the board_state as a whole.
 "MiniMaxAlgo" contains the used algorithm for searching through the move tree to compare different moves through the
 resulting board states (in the end NegaMax with early alpha beta pruning was used, without ordering).
