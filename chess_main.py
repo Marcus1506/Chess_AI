@@ -7,6 +7,7 @@ import sys
 from MiniMaxAlgo import find_good_move
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
+import random
 
 LENGTH=512 # divides neatly by 8
 SQR_SIZE=64
@@ -151,8 +152,8 @@ def main():
             
         if not human_turn and len(valid_moves)!=0:
             AI_move=find_good_move(gs, valid_moves, evaluator)
-            try: gs.move_piece(AI_move)
-            except: print("no AI move found\n")
+            if AI_move: gs.move_piece(AI_move)
+            else: gs.move_piece(random.choice(valid_moves))
             valid_moves=gs.get_valid_moves()
         
         draw_game_state(screen, gs, valid_moves, selected_start)
