@@ -25,7 +25,7 @@ Here are some changes which could still improve performance:
 2) Secondly, the database on which the neural network was trained on, although being rather big (approx. 4mil boards)
 consisted only of games played by very high level players (ELO: 2000+). Therefore really good and really bad positions
 (or losing therefore) were severely underrepresented. In other words: the data was very imbalanced, which lead to some
-weird behaviour of the AI and resulted in a ELO of around 900 (estimation based DEPTH=2).
+weird behaviour of the AI and resulted in a ELO of around 900 (estimation based on DEPTH=2).
 
 The imbalance of the dataset can be seen in the label distribution histogram plots (data\evaluated_positions).
 - to avoid this one could pull a dataset of any played games, run the neccessary evaluations by stockfish, and then
