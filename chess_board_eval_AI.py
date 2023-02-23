@@ -11,9 +11,9 @@ One chess game lasts 40 moves on average (80 positions), so around 4*10^6 board 
 our dataset.
 
 Each boardstate of every game is endcoded according to some representation.
-Therefore the position of each piece on the board and their estimated initial values are our features.
+Therefore the position of each piece on the board together with their estimated initial values are our features.
 The evaluation of the board state, which is in centipawns (cp), where 100 cp = 1 pawn, which is an arbritrary
-unit and is > 0 if white has the advantage and < 0 if black is winning.
+unit and is > 0 if white has the advantage and < 0 if black is winning, is our label that we have to predict.
 
 -----------------------------------------------------------------------------------------
 
@@ -24,6 +24,8 @@ Then follows feeding each individual game into my chess engine and extracting ea
 
 After that Im merging the extracted data with the data from the corresponding evaluated positions in 
 stockfish.csv, such that I have only boardstates with their corresponding evaluations in a file.
+
+Since chess uses non tabular data, I choose to work without using pandas.
 
 '''
 
@@ -53,7 +55,7 @@ def extract_moves(source_file, target_file):
     with open(target_file, "w") as target:
         target.write(json_data)
     
-def generate_board_states_board_rep(source_file, target_dir): # uses lots of RAM, we could divide it beforehand
+def generate_board_states_board_rep(source_file, target_dir): # uses lots of RAM
     boards=[]
     gamestate=chess_board()
     count=0
@@ -71,13 +73,11 @@ def generate_board_states_board_rep(source_file, target_dir): # uses lots of RAM
                 boards.append(rep)
     
     # save boards into a file
-    # since we use numpy arrays, we want to use the .npy format
     boards=np.array(boards)
     np.save(target_dir+"boards_board_representation.npy", boards)
 
-def combine_evals_with_board_rep(eval_file, boards_rep_file, target_file):
+def combine_evals_with_board_rep(eval_file, boards_rep_file, target_file): # USES APPROX 12GB of RAM (large dataset)
     boards=np.load(boards_rep_file)
-    boards=np.array([board.flatten() for board in boards]) # flatten the arrays for neural network input
     boards=boards.tolist()
     eval_scores=[]
     
@@ -96,11 +96,18 @@ def combine_evals_with_board_rep(eval_file, boards_rep_file, target_file):
     
     labeled_data=[]
     
-    for i in range(len(eval_scores)-1, -1, -1):
+    for i in range(len(eval_scores)):
         if eval_scores[i]!='NA' and eval_scores[i]!='': # remove NA (no stockfish evaluation) and instant resigns (no moves played)
             labeled_data.append([boards[i], int(eval_scores[i])])
         else:
             print(i)
+    
+    random.shuffle(labeled_data)
+    
+    batch=labeled_data[:1000000] # first million entries
+    
+    with open(target_file+"_batch.json", 'w') as source:
+        json.dump(batch, source)
     
     with open(target_file+".json", 'w') as source:
         json.dump(labeled_data, source)
@@ -124,29 +131,84 @@ Now get board evaluations from stockfish.csv and pair them with corresponding bo
 
 # combine_evals_with_board_rep("data/evaluated_positions/stockfish.csv", "data/evaluated_positions/boards_board_representation.npy", "data/evaluated_positions/labeled_data_board_rep")
 
+#-------------------------------------------------------------------------------------------------------------
+# TRAINING OF MODEL
 
-
+import tensorflow as tf
+from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
-from sklearn.metrics import accuracy_score
+from tensorflow.python.client import device_lib
+import matplotlib.pyplot as plt
 
-# initialize model:
-model=Sequential()
-model.add(Dense(units=64, input_dim=64)) # here also activations?
-model.add(Dense(units=80, activation='relu'))
-model.add(Dense(units=80, activation='relu'))
-model.add(Dense(units=80, activation='relu'))
-model.add(Dense(units=1)) # what activations makes sense here?
+# with open("data/evaluated_positions/labeled_data_board_rep.json", 'r') as source:
+    # dataset=source.read()
+    # dataset=json.loads(dataset)
+    # X_train=[subset[0] for subset in dataset]
+    # y_train=[subset[1] for subset in dataset]
+
+# print(device_lib.list_local_devices())
+
+# X_train=tf.constant(X_train, dtype=tf.float32)
+# y_train=tf.constant(y_train, dtype=tf.float32)
 
 
 
+# max_abs=tf.reduce_max(tf.math.abs(y_train))
+
+# # # plt.hist(y_train, 20)
+# # # plt.savefig("data/evaluated_positions/label_distribution.png")
+
+# y_train=y_train/max_abs # scaled to -1 1
+# # # tf.print(y_train)
+
+# # plt.hist(y_train, 20)
+# # plt.savefig("data/evaluated_positions/label_distribution_normalized.png")
 
 
-# CODE FOR DEBUGGING STANDARDIZED MOVE READ-INS:
-# gamestate=chess_board()
-# gamestate.reset_board()
-# while True:
-    # print(gamestate)
-    # next_move=input("next move in standard notation: ")
-    # gamestate.make_move_UCI(next_move)
-    # gamestate.whites_turn=not gamestate.whites_turn
+
+# # Neural Network
+
+# # initialize model:
+
+# callback=tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, min_delta=1e-4)
+
+# model=Sequential()
+# model.add(Dense(units=64, input_shape=(64,)))
+# model.add(Dense(units=256, activation='tanh')) 
+# model.add(Dense(units=256, activation='relu'))
+# model.add(Dense(units=256, activation='relu'))
+# model.add(Dense(units=1, activation='tanh'))
+
+# model.compile(loss='mae', optimizer=SGD(learning_rate=0.001) , metrics='mae')
+
+# history=model.fit(X_train, y_train, batch_size=128, steps_per_epoch=10000, epochs=1000, callbacks=[callback], validation_split=0.05)
+
+# print(len(history.history['loss']))
+
+# model.save("data/large_models/model_mae_3_layer_tanh_relu_wide_uniform")
+
+
+# -------------------------
+# Testing
+
+
+chess_board_test=chess_board()
+chess_board_test.reset_board()
+x_test=chess_board_test.convert_to_board_representation().reshape(1,64)
+print(x_test)
+print(np.shape(x_test))
+print(x_test.dtype)
+
+
+model=load_model("data/large_models/model_mae_3_layer_tanh_relu_wide_uniform")
+print(model.input[0].shape)
+print(model.input[0].dtype)
+
+
+
+y_predict=model(x_test, training=False) # faster than predict
+
+
+
+tf.print(y_predict[0,0])

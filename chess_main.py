@@ -5,14 +5,15 @@ from chess_module import *
 import pygame as p
 import sys
 from MiniMaxAlgo import find_good_move
-
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, load_model
 
 LENGTH=512 # divides neatly by 8
 SQR_SIZE=64
 MAX_FPS=20
 IMAGES={}
 
-WHITE_AI=False
+WHITE_AI=True
 BLACK_AI=False
 
 
@@ -103,6 +104,8 @@ def main():
     
     sys.setrecursionlimit(1200) # 1000 is standard
     
+    evaluator=load_model("data/large_models/model_mae_3_layer_tanh_relu_wide_uniform")
+    
     while running:
         human_turn=(gs.whites_turn and not WHITE_AI) or ( not gs.whites_turn and not BLACK_AI)
         for e in p.event.get():
@@ -143,13 +146,14 @@ def main():
                     valid_moves=gs.get_valid_moves()
                 if e.key==p.K_RETURN and len(valid_moves)==0:
                     gs.reset_board()
+                    gs.whites_turn=True
                     valid_moves=gs.get_valid_moves()
             
         if not human_turn and len(valid_moves)!=0:
-            AI_move=find_good_move(gs, valid_moves)
-            gs.move_piece(AI_move)
+            AI_move=find_good_move(gs, valid_moves, evaluator)
+            try: gs.move_piece(AI_move)
+            except: print("no AI move found\n")
             valid_moves=gs.get_valid_moves()
-                
         
         draw_game_state(screen, gs, valid_moves, selected_start)
         

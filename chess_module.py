@@ -466,6 +466,8 @@ class chess_board:
                     else:
                         value=-DUMB_PIECE_SCORES[piece.rep]
                     integer_board[i, j]=value
+        # need to return neural network input layer compatible rep
+        integer_board=integer_board.flatten()
         return integer_board
 
 class move: # class for storing moves and analyzing future moves
