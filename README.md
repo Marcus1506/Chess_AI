@@ -1,4 +1,4 @@
-Chess engine with UI and trained AI
+Chess engine with UI and trained NN
 
 basic function:
 "chess_main.py" provides interactable UI and mouse and key function, and controls some of the game logic.
